@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Component Information Form{% endblock %}
+{% block head %}
+<script>
+	// Update the visability of the loading text
+	function toggleLoading() {
+		document.getElementById("loading").classList.toggle("hidden");
+	}
+
+    // Update all form fields based on new JSON data from LLM
+    function updateFormFields(newData) {
+	document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+  	checkbox.checked = false;
+	});
+	document.querySelectorAll('textarea').forEach(textarea => {
+  	textarea.value = '';
+	});
+
+		for (const key in newData) {
+
+			const ratingElement = document.getElementById(`${key}-rating`);
+			if (ratingElement?.tagName.toLowerCase() === "textarea") {
+				ratingElement.value = String(newData[key].rating ?? ""); 
+			}
+
+
+			const explanationElement = document.getElementById(`${key}-explanation`);
+			if (explanationElement?.tagName.toLowerCase() === "textarea") {
+				explanationElement.value = newData[key].explanation ?? "";
+			}
+		}
+	}
+
+
+    async function uploadFile(event) {
+      event.preventDefault(); 
+      const form = document.getElementById('uploadForm');
+      const formData = new FormData(form);
+	  toggleLoading();
+
+      try {
+        const response = await fetch('/estimate', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+			toggleLoading();
+          throw new Error(`Server error: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log('Received data:', result);
+		toggleLoading();
+        updateFormFields(result);
+      } catch (error) {
+		toggleLoading();
+        console.error('Error uploading file:', error);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('uploadForm').addEventListener('submit', uploadFile);
+    });
+  </script>
+{% endblock %}
+
+{% block body_attributes %}onload="updateFieldsetVisibility()"{% endblock %}
+{% block body %}
+	<h1>FAA Step 4</h1> 
+	<form id="uploadForm" method="POST" enctype="multipart/form-data">
+	  <label for="file">Upload a PDF file of a user manual:</label>
+	  <input type="file" id="file" name="file" accept="application/pdf" required>
+	  <label for="llmAPI">Choose which LLM to use:</label>
+	  <select id="llmAPI" name="llmAPI">
+		<option value="simulate:simulate">None</option>
+		<option value="openai:gpt-4.1-mini">OpenAI GPT-4.1 Mini</option>
+		<option value="openai:o3-mini">OpenAI o3 Mini</option>
+		<option value="deepseek:deepseek-chat">DeepSeek v3</option>
+		<option value="deepseek:deepseek-reasoner">DeepSeek r1</option>
+		<option value="gemini:gemini-1.5-pro">Google Gemini 1.5 Pro</option>
+		<option value="gemini:gemini-2.0-flash">Google Gemini 2.0 Flash</option>
+		<option value="groq:gemma2-9b-it">Google Gemma 2</option>
+		<option value="groq:llama3-70b-8192">Meta Llama 3</option>
+	  </select>
+	  <br><br>
+	  <button type="submit">Upload</button>
+	</form>
+
+<div id="loading" class="hidden">
+	<h1>Loading...</h1>
+</div>
+
+<h1>Criticalities</h1>
+<form action="/getThreats" method="post">
+	<fieldset>
+		<legend>Failure Criticalities</legend>
+		<div class="option-container" id="dc-container"><div class="option-box-text"><p>Data Criticality</p></div><div class="option-box-rating"><textarea id="dc-rating" class="rating-textarea" readonly></textarea></div><div class="option-box-explanation"><textarea id="dc-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container" id="ipc-container"><div class="option-box-text"><p>Intellectual Property Criticality</p></div><div class="option-box-rating"><textarea id="ipc-rating" class="rating-textarea" readonly></textarea></div><div class="option-box-explanation"><textarea id="ipc-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container" id="lic-container"><div class="option-box-text"><p>Location Criticality</p></div><div class="option-box-rating"><textarea id="lic-rating" class="rating-textarea" readonly></textarea></div><div class="option-box-explanation"><textarea id="lic-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container" id="sc-container"><div class="option-box-text"><p>Safity Criticality</p></div><div class="option-box-rating"><textarea id="sc-rating" class="rating-textarea" readonly></textarea></div><div class="option-box-explanation"><textarea id="sc-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container" id="fc-container"><div class="option-box-text"><p>Financial Criticality</p></div><div class="option-box-rating"><textarea id="fc-rating" class="rating-textarea" readonly></textarea></div><div class="option-box-explanation"><textarea id="fc-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container" id="fc2-container"><div class="option-box-text"><p>Financial Criticality 2</p></div><div class="option-box-rating"><textarea id="fc2-rating" class="rating-textarea" readonly></textarea></div><div class="option-box-explanation"><textarea id="fc2-explanation" class="explanation-textarea" readonly></textarea></div></div>
+	</fieldset>
+	
+	<button type="submit">Estimate Impact</button>
+</form>
+{% endblock %} 

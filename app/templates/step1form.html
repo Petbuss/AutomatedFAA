@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Component Information Form{% endblock %}
+{% block head %}
+<script>
+	// Update the visability of the loading text
+	function toggleLoading() {
+		document.getElementById("loading").classList.toggle("hidden");
+	}
+
+    // Update all form fields based on new JSON data from LLM
+    function updateFormFields(newData) {
+	document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+  	checkbox.checked = false;
+	});
+	document.querySelectorAll('textarea').forEach(textarea => {
+  	textarea.value = '';
+	});
+      // Update text fields:
+      document.getElementById('component_name').value = newData["component_name"] || "";
+      document.getElementById('manufacturer').value = newData["manufacturer"] || "";
+
+		for (const key in newData){
+			const checkboxElement = document.getElementById(key);
+			if (checkboxElement?.type === "checkbox") {
+				checkboxElement.checked = true;
+			}
+			const explanationElement = document.getElementById(`${key}-explanation`);
+			if (explanationElement?.tagName.toLowerCase() === 'textarea') {
+				explanationElement.value = newData[key] || "";
+			}
+		}
+	}
+
+	// Function intercepts an uploadForm event, waits for response from LLM
+    async function uploadFile(event) {
+      event.preventDefault(); 
+      const form = document.getElementById('uploadForm');
+      const formData = new FormData(form);
+	  toggleLoading();
+
+      try {
+        const response = await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+			toggleLoading();
+          throw new Error(`Server error: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log('Received data:', result);
+		toggleLoading();
+        updateFormFields(result);
+      } catch (error) {
+		toggleLoading();
+        console.error('Error uploading file:', error);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('uploadForm').addEventListener('submit', uploadFile);
+    });
+  </script>
+{% endblock %}
+
+{% block body_attributes %}onload="updateFieldsetVisibility()"{% endblock %}
+{% block body %}
+	<h1>FAA Step 1</h1> 
+	<form id="uploadForm" method="POST" enctype="multipart/form-data">
+	  <label for="file">Upload a PDF file of a user manual:</label>
+	  <input type="file" id="file" name="file" accept="application/pdf" required>
+	  <label for="llmAPI">Choose which LLM to use:</label>
+	  <select id="llmAPI" name="llmAPI">
+		<option value="simulate:simulate">None</option>
+		<option value="openai:gpt-4.1-mini">OpenAI GPT-4.1 Mini</option>
+		<option value="openai:o3-mini">OpenAI o3 Mini</option>
+		<option value="deepseek:deepseek-chat">DeepSeek v3</option>
+		<option value="deepseek:deepseek-reasoner">DeepSeek r1</option>
+		<option value="gemini:gemini-1.5-pro">Google Gemini 1.5 Pro</option>
+		<option value="gemini:gemini-2.0-flash">Google Gemini 2.0 Flash</option>
+		<option value="groq:gemma2-9b-it">Google Gemma 2</option>
+		<option value="groq:llama3-70b-8192">Meta Llama 3</option>
+	  </select>
+	  
+	  <br><br>
+	  <button type="submit">Upload</button>
+	</form>
+
+<div id="loading" class="hidden">
+	<h1>Loading...</h1>
+</div>
+
+<h1>Enter Component Information</h1>
+<form action="/getThreats" method="post">
+	<fieldset>
+		<legend>Component Information</legend>
+		<label for="component_name">Component Name:</label>
+		<input type="text" id="component_name" name="component_name" value="" maxlength="30">
+		<label for="manufacturer">Manufacturer:</label>
+		<input type="text" id="manufacturer" name="manufacturer" value="" maxlength="30">
+	</fieldset>
+	<!--
+	<fieldset>
+		<legend>Component Class</legend>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="it" name="it"></div><div class="option-box-text"><p>IT - Enterprise</p></div><div class="option-box-explanation"><textarea id="it-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="ics" name="ics"></div><div class="option-box-text"><p>OT - ICS</p></div><div class="option-box-explanation"><textarea id="ics-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="mobile" name="mobile"></div><div class="option-box-text"><p>Mobile</p></div><div class="option-box-explanation"><textarea id="mobile-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="embedded" name="embedded"></div><div class="option-box-text"><p>Embedded</p></div><div class="option-box-explanation"><textarea id="embedded-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="software" name="software"></div><div class="option-box-text"><p>Software</p></div><div class="option-box-explanation"><textarea id="software-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="ai" name="ai"></div><div class="option-box-text"><p>Artificial Intelligence</p></div><div class="option-box-explanation"><textarea id="ai-explanation" class="explanation-textarea" readonly></textarea></div></div>
+	</fieldset>
+
+	<fieldset>
+		<legend>IT Platform</legend>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="windows" name="windows"></div><div class="option-box-text"><p>Windows</p></div><div class="option-box-explanation"><textarea id="windows-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="linux" name="linux"></div><div class="option-box-text"><p>Linux</p></div><div class="option-box-explanation"><textarea id="linux-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="network" name="network"></div><div class="option-box-text"><p>Network</p></div><div class="option-box-explanation"><textarea id="network-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="macos" name="macos"></div><div class="option-box-text"><p>macOS</p></div><div class="option-box-explanation"><textarea id="macos-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="iaas" name="iaas"></div><div class="option-box-text"><p>IaaS</p></div><div class="option-box-explanation"><textarea id="iaas-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="saas" name="saas"></div><div class="option-box-text"><p>SaaS</p></div><div class="option-box-explanation"><textarea id="saas-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="office_suite" name="office_suite"></div><div class="option-box-text"><p>Office Suite</p></div><div class="option-box-explanation"><textarea id="office_suite-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="identity_provider" name="identity_provider"></div><div class="option-box-text"><p>Identity Provider</p></div><div class="option-box-explanation"><textarea id="identity_provider-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="containers" name="containers"></div><div class="option-box-text"><p>Containers</p></div><div class="option-box-explanation"><textarea id="containers-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="other_it_platform" name="other_it_platform"></div><div class="option-box-text"><p>Other IT Platform</p></div><div class="option-box-explanation"><textarea id="other_it_platform-explanation" class="explanation-textarea" readonly></textarea></div></div>
+	</fieldset>
+	<fieldset>
+		<legend>Mobile Technology</legend>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="android" name="android"></div><div class="option-box-text"><p>Android</p></div><div class="option-box-explanation"><textarea id="android-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="ios" name="ios"></div><div class="option-box-text"><p>IOS</p></div><div class="option-box-explanation"><textarea id="ios-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="other_mobile_technology" name="other_mobile_technology"></div><div class="option-box-text"><p>Other Mobile Technology</p></div><div class="option-box-explanation"><textarea id="other_mobile_technology-explanation" class="explanation-textarea" readonly></textarea></div></div>
+	</fieldset>
+	<fieldset>
+		<legend>ICS Assets</legend>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0008" name="a0008"></div><div class="option-box-text"><p>A0008 Application Server</p></div><div class="option-box-explanation"><textarea id="a0008-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0007" name="a0007"></div><div class="option-box-text"><p>A0007 Control Server</p></div><div class="option-box-explanation"><textarea id="a0007-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0009" name="a0009"></div><div class="option-box-text"><p>A0009 Data Gateway</p></div><div class="option-box-explanation"><textarea id="a0009-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0006" name="a0006"></div><div class="option-box-text"><p>A0006 Data Historian</p></div><div class="option-box-explanation"><textarea id="a0006-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0013" name="a0013"></div><div class="option-box-text"><p>A0013 Field I/O</p></div><div class="option-box-explanation"><textarea id="a0013-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0002" name="a0002"></div><div class="option-box-text"><p>A0002 Human-Machine-Interface</p></div><div class="option-box-explanation"><textarea id="a0002-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0005" name="a0005"></div><div class="option-box-text"><p>A0005 Intelligent Electronic Device</p></div><div class="option-box-explanation"><textarea id="a0005-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0012" name="a0012"></div><div class="option-box-text"><p>A0012 Jump Host</p></div><div class="option-box-explanation"><textarea id="a0012-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0003" name="a0003"></div><div class="option-box-text"><p>A0003 Programmable Logic Controller</p></div><div class="option-box-explanation"><textarea id="a0003-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0004" name="a0004"></div><div class="option-box-text"><p>A0004 Remote Terminal Unit</p></div><div class="option-box-explanation"><textarea id="a0004-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0014" name="a0014"></div><div class="option-box-text"><p>A0014 Router</p></div><div class="option-box-explanation"><textarea id="a0014-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0010" name="a0010"></div><div class="option-box-text"><p>A0010 Safety Controller</p></div><div class="option-box-explanation"><textarea id="a0010-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0011" name="a0011"></div><div class="option-box-text"><p>A0011 Virtual Private Network Serve</p></div><div class="option-box-explanation"><textarea id="a0011-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="a0001" name="a0001"></div><div class="option-box-text"><p>A0001 Workstation</p></div><div class="option-box-explanation"><textarea id="a0001-explanation" class="explanation-textarea" readonly></textarea></div></div>
+	</fieldset>
+		-->
+	<fieldset>
+		<legend>Embedded Properties</legend>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid11" name="pid11"></div><div class="option-box-text"><p>PID-11 Includes a microprocessor</p></div><div class="option-box-explanation"><textarea id="pid11-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid121" name="pid121"></div><div class="option-box-text"><p>PID-121 Includes buses for external memory/storage</p></div><div class="option-box-explanation"><textarea id="pid121-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid122" name="pid122"></div><div class="option-box-text"><p>PID-122 Includes discrete chips/devices that have access to the same physical memory</p></div><div class="option-box-explanation"><textarea id="pid122-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid123" name="pid123"></div><div class="option-box-text"><p>PID-123 Includes ROM, VRAM, or removable Storage</p></div><div class="option-box-explanation"><textarea id="pid123-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid124" name="pid124"></div><div class="option-box-text"><p>PID-124 Includes RAM chips</p></div><div class="option-box-explanation"><textarea id="pid124-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid1241" name="pid1241"></div><div class="option-box-text"><p>PID-1241 Includes DDR DRAM</p></div><div class="option-box-explanation"><textarea id="pid1241-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid13" name="pid13"></div><div class="option-box-text"><p>PID-13 Includes peripheral chips and integrated data buses</p></div><div class="option-box-explanation"><textarea id="pid13-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid14" name="pid14"></div><div class="option-box-text"><p>PID-14 Includes external peripheral interconnects</p></div><div class="option-box-explanation"><textarea id="pid14-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid15" name="pid15"></div><div class="option-box-text"><p>PID-15 Includes a hardware access port</p></div><div class="option-box-explanation"><textarea id="pid15-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid21" name="pid21"></div><div class="option-box-text"><p>PID-21 Includes a bootloader</p></div><div class="option-box-explanation"><textarea id="pid21-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid22" name="pid22"></div><div class="option-box-text"><p>PID-22 Includes a debugging capabilities</p></div><div class="option-box-explanation"><textarea id="pid22-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid23" name="pid23"></div><div class="option-box-text"><p>PID-23 Includes OS/kernel</p></div><div class="option-box-explanation"><textarea id="pid23-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid231" name="pid231"></div><div class="option-box-text"><p>PID-231 Includes an operating system that uses drivers/modules that can be loaded</p></div><div class="option-box-explanation"><textarea id="pid231-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid2321" name="pid2321"></div><div class="option-box-text"><p>PID-2321 Lacks an access enforcement/privilege mechanism</p></div><div class="option-box-explanation"><textarea id="pid2321-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid23221" name="pid23221"></div><div class="option-box-text"><p>PID-23221 Includes and enforces OS user accounts</p></div><div class="option-box-explanation"><textarea id="pid23221-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid23222" name="pid23222"></div><div class="option-box-text"><p>PID-23222 Includes a memory management model, including protections of memory access</p></div><div class="option-box-explanation"><textarea id="pid23222-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid241" name="pid241"></div><div class="option-box-text"><p>PID-241 Includes containers</p></div><div class="option-box-explanation"><textarea id="pid241-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid242" name="pid242"></div><div class="option-box-text"><p>PID-242 Includes hypervisor</p></div><div class="option-box-explanation"><textarea id="pid242-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid251" name="pid251"></div><div class="option-box-text"><p>PID-251 Root of Trust is physically accessible or is not immutable</p></div><div class="option-box-explanation"><textarea id="pid251-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid252" name="pid252"></div><div class="option-box-text"><p>PID-252 Root of Trust is immutable</p></div><div class="option-box-explanation"><textarea id="pid252-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid26" name="pid26"></div><div class="option-box-text"><p>PID-26 Lacks firmware/software update support</p></div><div class="option-box-explanation"><textarea id="pid26-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid271" name="pid271"></div><div class="option-box-text"><p>PID-271 Firmware or software that is not cryptographically checked for integrity validation</p></div><div class="option-box-explanation"><textarea id="pid271-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid272" name="pid272"></div><div class="option-box-text"><p>PID-272 Includes cryptographic firmware/software integrity protection mechanisms</p></div><div class="option-box-explanation"><textarea id="pid272-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid2721" name="pid2721"></div><div class="option-box-text"><p>PID-2721 Includes a shared key for firmware integrity validation</p></div><div class="option-box-explanation"><textarea id="pid2721-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid2722" name="pid2722"></div><div class="option-box-text"><p>PID-2722 Includes digitally signed firmware (with private key)</p></div><div class="option-box-explanation"><textarea id="pid2722-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid273" name="pid273"></div><div class="option-box-text"><p>PID-273 Unencrypted firmware updates</p></div><div class="option-box-explanation"><textarea id="pid273-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid274" name="pid274"></div><div class="option-box-text"><p>PID-274 Includes user firmware/software version selection during updates</p></div><div class="option-box-explanation"><textarea id="pid274-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid275" name="pid275"></div><div class="option-box-text"><p>PID-275 Includes remotely-initiated firmware/software updates</p></div><div class="option-box-explanation"><textarea id="pid275-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid31" name="pid31"></div><div class="option-box-text"><p>PID-31 Application-level software is present and running</p></div><div class="option-box-explanation"><textarea id="pid31-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid311" name="pid311"></div><div class="option-box-text"><p>PID-311 Includes the usage of a web/HTTP applications</p></div><div class="option-box-explanation"><textarea id="pid311-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid3121" name="pid3121"></div><div class="option-box-text"><p>PID-3121 Includes support for object oriented programming languages</p></div><div class="option-box-explanation"><textarea id="pid3121-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid3122" name="pid3122"></div><div class="option-box-text"><p>PID-3122 Includes support for manual memory management programming languages</p></div><div class="option-box-explanation"><textarea id="pid3122-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid32" name="pid32"></div><div class="option-box-text"><p>PID-32 Includes the ability to deploy custom or external programs</p></div><div class="option-box-explanation"><textarea id="pid32-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid321" name="pid321"></div><div class="option-box-text"><p>PID-321 Includes ability to deploy custom programs from engineering software or IDE</p></div><div class="option-box-explanation"><textarea id="pid321-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid322" name="pid322"></div><div class="option-box-text"><p>PID-322 Includes a program runtime environment for custom or external programs</p></div><div class="option-box-explanation"><textarea id="pid322-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid3231" name="pid3231"></div><div class="option-box-text"><p>PID-3231 Includes ability to run custom programs as native binary</p></div><div class="option-box-explanation"><textarea id="pid3231-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid3232" name="pid3232"></div><div class="option-box-text"><p>PID-3232 Includes ability to run custom programsthrough an environment</p></div><div class="option-box-explanation"><textarea id="pid3232-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid324" name="pid324"></div><div class="option-box-text"><p>PID-324 Includes support to retrieve programs from the device from an engineering workstation</p></div><div class="option-box-explanation"><textarea id="pid324-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid331" name="pid331"></div><div class="option-box-text"><p>PID-331 Includes unauthenticated services</p></div><div class="option-box-explanation"><textarea id="pid331-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid332" name="pid332"></div><div class="option-box-text"><p>PID-332 Includes authenticated services</p></div><div class="option-box-explanation"><textarea id="pid332-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid3321" name="pid3321"></div><div class="option-box-text"><p>PID-3321 Includes passwords to authenticate the users</p></div><div class="option-box-explanation"><textarea id="pid3321-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid3322" name="pid3322"></div><div class="option-box-text"><p>PID-3322 Includes cryptographic mechanism to authenticate users and sessions</p></div><div class="option-box-explanation"><textarea id="pid3322-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid41" name="pid41"></div><div class="option-box-text"><p>PID-41 Exposes remote network services</p></div><div class="option-box-explanation"><textarea id="pid41-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid4111" name="pid4111"></div><div class="option-box-text"><p>PID-4111 Lacks protocol support for message authentication</p></div><div class="option-box-explanation"><textarea id="pid4111-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid4112" name="pid4112"></div><div class="option-box-text"><p>PID-4112 Lacks protocol support for message encryption</p></div><div class="option-box-explanation"><textarea id="pid4112-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid4113" name="pid4113"></div><div class="option-box-text"><p>PID-4113 Includes cryptographic functions for sensitive data</p></div><div class="option-box-explanation"><textarea id="pid4113-explanation" class="explanation-textarea" readonly></textarea></div></div>
+		<div class="option-container"><div class="option-box-checkbox"><input type="checkbox" id="pid42" name="pid42"></div><div class="option-box-text"><p>PID-42 Includes procedure to forward or route network messages</p></div><div class="option-box-explanation"><textarea id="pid42-explanation" class="explanation-textarea" readonly></textarea></div></div>
+	</fieldset>
+	<button type="submit">Get Relevant Threats</button>
+</form>
+{% endblock %} 
